@@ -1,6 +1,9 @@
 // IMPORTS
 // ===============================================================================
-const db = require('./db');
+const db = require('./db').db;
+const begin = require('./db').begin;
+const commit = require('./db').commit;
+const rollback = require('./db').rollback;
 const moment_tz = require('moment-timezone');
 const { dnsPrefetchControl } = require('helmet');
 
@@ -10,6 +13,36 @@ const { dnsPrefetchControl } = require('helmet');
 
 // MODELS
 // ===============================================================================
+
+
+// CONVERT BOOLEAN
+function formatBooleanTask(header, detail_list){
+
+    if(header != null){
+        let temp_header = header;
+        for(let key of Object.keys(header)){
+            if(key.indexOf("Is_") != -1){
+                temp_header[key] = (temp_header[key] == true);
+            }
+        }
+        console.log(temp_header);
+        return temp_header;    
+    }
+
+    if(detail_list != null){
+        let temp_detail_list = detail_list;
+        for(let detail_index in detail_list){
+            for(let key of Object.keys(detail_list[detail_index])){
+                if(key.indexOf("Is_") != -1){
+                    temp_detail_list[detail_index][key] = (temp_detail_list[detail_index][key] == true);
+                }
+            }
+        }
+        console.log(temp_detail_list);
+        return temp_detail_list;    
+    }
+
+}
 
 
 // ADD task
@@ -28,9 +61,14 @@ function addTask(
         let date_now = moment_tz()
         console.log(action_time)
 
-        // HEADER
+        
         let header_id;
-        db.run(
+
+        // BEGIN
+        begin.run();
+
+        // HEADER
+        let insert_head_stmt = db.prepare(
             `
                 INSERT INTO task(title, action_time, created_time, updated_time, is_finished)
                 VALUES (
@@ -40,22 +78,16 @@ function addTask(
                     ${date_now.unix()},
                     false
                 )
-            `,
-            (err) => {
-                if(err){
-                    throw err;
-                }
-
-                header_id = this.lastID;
-
-                console.log('header data created :: ' + header_id.toString());
-
-            }
+            `
         );
+        let insert_head_info = insert_head_stmt.run();
+        header_id = insert_head_info.lastInsertRowid;
+        console.log('header data created :: ' + header_id.toString());
 
         for(let objective_name of objective_name_list){
+
             // DETAIL
-            db.run(
+            let insert_detail_stmt = db.prepare(
                 `
                     INSERT INTO task_detail(task_id, objective_name, is_finished)
                     VALUES (
@@ -63,24 +95,24 @@ function addTask(
                         '${objective_name}',
                         false
                     )
-                `,
-                (err) => {
-                    if(err){
-                        throw err;
-                    }
-                    console.log('detail data created :: '  + this.lastID.toString());
-
-                }
+                `
             );
+            let insert_detail_info = insert_detail_stmt.run();
+            detail_id = insert_detail_info.lastInsertRowid;
+            console.log('detail data created :: ' + detail_id.toString());
+            
 
         }
 
+        // COMMIT
+        commit.run();
         
         success = true;
         result = null;
 
     } catch(err) {
 
+        if (db.inTransaction) rollback.run();
         console.log(err.message);
         success = false;
         result = err.message;
@@ -116,12 +148,12 @@ function getTaskSearch(
         // HEADER
         let query = `
             SELECT 
-                task_id,
-                title,
-                action_time,
-                created_time,
-                updated_time,
-                is_finished
+                task_id as "Task_ID",
+                title as "Title",
+                action_time as "Action_Time",
+                created_time as "Created_Time",
+                updated_time as "Updated_Time",
+                is_finished as "Is_Finished"
             FROM task
         `;
         let filter_applied = 0;
@@ -135,7 +167,7 @@ function getTaskSearch(
                 query += " and "
             }
 
-            let filter_value = '%'+title.toString().toLowerCase()+'%';
+            let filter_value = "'" + '%'+title.toString().toLowerCase()+'%' + "'" ;
             query += ` title like ${filter_value} `;
             filter_applied += 1;
         }
@@ -246,54 +278,42 @@ function getTaskSearch(
 
 
         result = [];
-        
-        db.each(
-            query,
-            (err, row) => {
-                if(err){
-                    throw err;
-                }
 
-                console.log('header data fetched :: ' + row["task_id"].toString());
-
-                let header_id = row["task_id"];
-                let header_data = row;
-                let header_detail_data_list;
-
-                db.all(
-                    `
-                        SELECT 
-                            td.task_detail_id,
-                            td.objective_name,
-                            td.is_finished
-                        FROM task_detail AS td
-                        INNER JOIN task AS t ON td.task_id = t.task_id
-                        WHERE td.task_id = ${header_id}
-                    `,
-                    (err, rows) => {
-                        if(err){
-                            throw err;
-                        }
-        
-                        header_detail_data_list = rows;
-
-                        result.push(
-                            {
-                                ...header_data,
-                                "Objective_List": header_detail_data_list
-                            }
-                        );
-        
-                        console.log('detail data fetched :: ' + rows.length.toString() + ' item :: for header id :: ' + header_id.toString());
-        
-                    }
-                );
-
-                
-                
-
-            }
+        let search_stmt = db.prepare(
+            query
         );
+        
+        for(const head_data of search_stmt.iterate()){
+
+            console.log('header data fetched :: ' + head_data["Task_ID"].toString());
+
+            let header_id = head_data["Task_ID"];
+            let header_data = head_data;
+
+            let search_detail_stmt = db.prepare(
+                `
+                    SELECT 
+                        td.task_detail_id as "Task_Detail_ID",
+                        td.objective_name as "Objective_Name",
+                        td.is_finished as "Is_Finished"
+                    FROM task_detail AS td
+                    INNER JOIN task AS t ON td.task_id = t.task_id
+                    WHERE td.task_id = ${header_id}
+                `
+            );
+                
+            let detail_data_list = search_detail_stmt.all();
+            result.push(
+                {
+                    ...formatBooleanTask(header_data, null),
+                    "Objective_List": formatBooleanTask(null, detail_data_list)
+                }
+            );
+
+            console.log('detail data fetched :: ' + detail_data_list.length.toString() + ' item :: for header id :: ' + header_id.toString());
+
+            
+        }
 
         
         success = true;
@@ -326,62 +346,53 @@ function getTaskByID(
     try {
 
         // HEADER
-        let query = `
-            SELECT 
-                task_id,
-                title,
-                action_time,
-                created_time,
-                updated_time,
-                is_finished
-            FROM task
-            WHERE task_id = ${task_id}
-            ORDER BY action_time asc
-        `;
-        
-        db.get(
-            query,
-            (err, row) => {
-                if(err){
-                    throw err;
-                }
-
-                console.log('header data fetched :: ' + row["task_id"].toString());
-
-                let header_id = row["task_id"];
-                let header_data = row;
-                let header_detail_data_list;
-
-                db.all(
-                    `
-                        SELECT 
-                            td.task_detail_id,
-                            td.objective_name,
-                            td.is_finished
-                        FROM task_detail AS td
-                        INNER JOIN task AS t ON td.task_id = t.task_id
-                        WHERE td.task_id = ${header_id}
-                    `,
-                    (err, rows) => {
-                        if(err){
-                            throw err;
-                        }
-        
-                        header_detail_data_list = rows;
-        
-                        console.log('detail data fetched :: ' + rows.length.toString() + ' item :: for header id :: ' + header_id.toString());
-        
-                    }
-                );
-
-                
-                result = {
-                    ...header_data,
-                    "Objective_List": header_detail_data_list
-                };
-
-            }
+        let header_stmt =  db.prepare(
+            `
+                SELECT 
+                    task_id as "Task_ID",
+                    title as "Title",
+                    action_time as "Action_Time",
+                    created_time as "Created_Time",
+                    updated_time as "Updated_Time",
+                    is_finished as "Is_Finished"
+                FROM task
+                WHERE task_id = ${task_id}
+                ORDER BY action_time asc
+            `
         );
+        let header_data = header_stmt.get();
+        if(!header_data){
+            success = true;
+            result = null;
+            return [
+                success,
+                result
+            ]; 
+        }
+        console.log('header data fetched :: ' + header_data["Task_ID"].toString());
+
+        let header_id = header_data["Task_ID"];
+        
+        let detail_stmt = db.prepare(
+            `
+                SELECT 
+                    td.task_detail_id as "Task_Detail_ID",
+                    td.objective_name as "Objective_Name",
+                    td.is_finished as "Is_Finished"
+                FROM task_detail AS td
+                INNER JOIN task AS t ON td.task_id = t.task_id
+                WHERE td.task_id = ${header_id}
+            `
+        );
+        let detail_data_list = detail_stmt.all();
+        console.log('detail data fetched :: ' + detail_data_list.length.toString() + ' item :: for header id :: ' + header_id.toString());
+
+
+        
+        result = {
+            ...formatBooleanTask(header_data, null),
+            "Objective_List": formatBooleanTask(null, detail_data_list)
+        };
 
         
         success = true;
@@ -415,90 +426,58 @@ function updateTask(
 
     try {
         
-        db.serialize(function() {
 
-            db.run(
-                "BEGIN",
-                (err, row) => {
-                    if(err){
-                        throw err;
-                    }
-    
-                    console.log('BEGIN');
-    
-                }
-            );
+        // BEGIN
+        begin.run();
 
-            db.run(
+        let update_head_stmt = db.prepare(
+            `
+                UPDATE task
+                SET title = '${title}'
+                WHERE task_id = ${task_id}
+            `
+        );
+        let update_head_info = update_head_stmt.run();
+        console.log('header data updated :: ' + task_id.toString());
+
+        let delete_detail_stmt = db.prepare(
+            `
+                DELETE FROM task_detail
+                WHERE task_id = ${task_id}
+            `
+        );
+        let delete_detail_info = delete_detail_stmt.run();
+        console.log('detail data deleted :: ' + task_id.toString());
+
+        for(let objective_data of objective_list){
+
+            let objective_name = objective_data["Objective_Name"];
+            let is_finished = objective_data["Is_Finished"].toString().toLowerCase();
+
+            let insert_detail_stmt = db.prepare(
                 `
-                    UPDATE task
-                    SET title = ${title}
-                    WHERE task_id = ${task_id}
-                `,
-                (err, row) => {
-                    if(err){
-                        throw err;
-                    }
-    
-                    console.log('header data updated :: ' + row["task_id"].toString());
-    
-                }
-            );
-
-            db.run(
+                    INSERT INTO task_detail(task_id, objective_name, is_finished)
+                    VALUES (
+                        ${task_id},
+                        '${objective_name}',
+                        ${is_finished}
+                    )
                 `
-                    DELETE FROM task_detail
-                    WHERE task_id = ${task_id}
-                `,
-                (err, row) => {
-                    if(err){
-                        throw err;
-                    }
-    
-                    console.log('detail data deleted :: ' + row["task_id"].toString());
-    
-                }
             );
-
-            for(let objective_data of objective_list){
-                db.run(
-                    `
-                        INSERT INTO task_detail(task_id, objective_name, is_finished)
-                        VALUES(${task_id}, ${objective_data["Objective_Name"]}, ${objective_data["Is_Finished"]}) ,
-                    `,
-                    (err, rows) => {
-                        if(err){
-                            throw err;
-                        }
-        
-                        console.log('detail data added :: ' + rows.length.toString() + ' item :: for header id :: ' + task_id.toString());
-        
-                    }
-                );
-            }
-
-            db.run(
-                "COMMIT",
-                (err, row) => {
-                    if(err){
-                        throw err;
-                    }
+            let insert_detail_info = insert_detail_stmt.run();
+        }
+        console.log('detail data added :: ' + objective_list.length.toString() + ' item :: for header id :: ' + task_id.toString());
     
-                    console.log('COMMIT');
-    
-                }
-            );
 
-        });
+        // COMMIT
+        commit.run();
 
-        
-
-        
         success = true;
         result = null
 
     } catch(err) {
 
+        if (db.inTransaction) rollback.run();
         console.log(err.message);
         success = false;
         result = err.message;
@@ -523,70 +502,79 @@ function deleteTask(
     let result = null;
 
     try {
-        
-        db.serialize(function() {
 
-            db.run(
-                "BEGIN",
-                (err, row) => {
-                    if(err){
-                        throw err;
-                    }
-    
-                    console.log('BEGIN');
-    
-                }
-            );
 
-            db.run(
-                `
-                    DELETE FROM task_detail
-                    WHERE task_id = ${task_id}
-                `,
-                (err, row) => {
-                    if(err){
-                        throw err;
-                    }
-    
-                    console.log('detail data deleted :: ' + row["task_id"].toString());
-    
-                }
-            );
+        // BEGIN
+        begin.run();
 
-            db.run(
-                `
-                    DELETE FROM task
-                    WHERE task_id = ${task_id}
-                `,
-                (err, row) => {
-                    if(err){
-                        throw err;
-                    }
-    
-                    console.log('header data deleted :: ' + row["task_id"].toString());
-    
-                }
-            );
-
-            db.run(
-                "COMMIT",
-                (err, row) => {
-                    if(err){
-                        throw err;
-                    }
-    
-                    console.log('COMMIT');
-    
-                }
-            );
-
-        });
+        let delete_detail_stmt = db.prepare(
+            `
+                DELETE FROM task_detail
+                WHERE task_id = ${task_id}
+            `
+        );
+        let delete_detail_info = delete_detail_stmt.run();
+        console.log('detail data deleted :: ' + task_id.toString());
 
         
+        let delete_header_stmt = db.prepare(
+            `
+                DELETE FROM task
+                WHERE task_id = ${task_id}
+            `
+        );
+        let delete_header_info = delete_header_stmt.run();
+        console.log('header data deleted :: ' + task_id.toString());
 
+        // COMMIT
+        commit.run();
         
         success = true;
         result = null
+
+    } catch(err) {
+
+        if (db.inTransaction) rollback.run();
+        console.log(err.message);
+        success = false;
+        result = err.message;
+
+
+    }
+
+    return [
+        success,
+        result
+    ];
+
+}
+
+// GET task by ID
+// ===============================================================================
+function checkTaskIDExists(
+    task_id,
+){
+
+    let success;
+    let result = null;
+
+    try {
+
+        // HEADER
+        let header_stmt =  db.prepare(
+            `
+                select exists(
+                    select 1 
+                    from task
+                    where task_id = ${task_id}
+                ) as "Exists"
+            `
+        );
+        let header_data = header_stmt.get();
+        console.log('header data checked :: ' + task_id.toString());
+
+        result = (header_data["Exists"] == true);
+        success = true;
 
     } catch(err) {
 
@@ -612,3 +600,4 @@ exports.getTaskSearch = getTaskSearch;
 exports.getTaskByID = getTaskByID;
 exports.updateTask = updateTask;
 exports.deleteTask = deleteTask;
+exports.checkTaskIDExists = checkTaskIDExists;

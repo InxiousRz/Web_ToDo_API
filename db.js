@@ -27,39 +27,26 @@ let detail_table_query = `
     )
 `;
 
-let db = new sqlite3_db(DBSOURCE, { verbose: console.log });(err) => {
-    if(err) {
-      // Cannot open database
-      console.error(err.message)
-      throw err
-    } else {
-        console.log('Connected to the SQLite database.');
+let db = new sqlite3_db(DBSOURCE, { verbose: console.log });
+console.log('Connected to the SQLite database.');
 
-        // HEAD CREATE
-        db.run(
-            head_table_query,
-            (err) => {
-                if(err){
-                    throw err;
-                }
-                console.log('Head table created to the SQLite database.');
-                
-            }
-        );
-        
-        // DETAIL CREATE
-        db.run(
-            detail_table_query,
-            (err) => {
-                if(err){
-                    throw err;
-                }
-                console.log('Detail table created to the SQLite database.');
-                
-            }
-        );
-    }
-});
+// HEAD CREATE
+let header_table_stmt = db.prepare(head_table_query);
+header_table_stmt.run();
+console.log('Head table created to the SQLite database.');
+
+// DETAIL CREATE
+let detail_table_stmt = db.prepare(detail_table_query);
+detail_table_stmt.run();
+console.log('Detail table created to the SQLite database.');
+
+// HARD PARAM
+let begin = db.prepare('BEGIN');
+let commit = db.prepare('COMMIT');
+let rollback = db.prepare('ROLLBACK');
 
 
-module.exports = db;
+exports.db = db;
+exports.begin = begin;
+exports.commit = commit;
+exports.rollback = rollback;

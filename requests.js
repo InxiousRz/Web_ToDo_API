@@ -17,6 +17,7 @@ const getTaskSearch = require('./functions').getTaskSearch;
 const getTaskByID = require('./functions').getTaskByID;
 const updateTask = require('./functions').updateTask;
 const deleteTask = require('./functions').deleteTask;
+const checkTaskIDExists = require('./functions').checkTaskIDExists;
 const logApiBasic = require('./utilities').logApiBasic;
 
 // CONFIGS
@@ -54,13 +55,13 @@ router.get('/get', async (req, res)=>{
     //=============================================================
     let joi_schema = joi.object({
         "Title": joi.string().default(null),
-        "Action_Time_Start": joi.date().timestamp().default(null),
-        "Action_Time_End": joi.date().timestamp().default(null),
-        "Created_Time_Start": joi.date().timestamp().default(null),
-        "Created_Time_End": joi.date().timestamp().default(null),
-        "Updated_Time_Start": joi.date().timestamp().default(null),
-        "Updated_Time_End": joi.date().timestamp().default(null),
-        "Is_Finished": joi.date().timestamp().default(null),
+        "Action_Time_Start": joi.date().timestamp('unix').default(null),
+        "Action_Time_End": joi.date().timestamp('unix').default(null),
+        "Created_Time_Start": joi.date().timestamp('unix').default(null),
+        "Created_Time_End": joi.date().timestamp('unix').default(null),
+        "Updated_Time_Start": joi.date().timestamp('unix').default(null),
+        "Updated_Time_End": joi.date().timestamp('unix').default(null),
+        "Is_Finished": joi.date().timestamp('unix').default(null),
         // "Page": joi.number().min(1).required(),
         // "Limit": joi.number().default(20).invalid(0)
     }).required();
@@ -223,7 +224,58 @@ router.put('/update/:id', async (req, res)=>{
     let title = joi_body_valid.value["Title"];
     let objective_list = joi_body_valid.value["Objective_List"];
 
-    // CHECK ID DOCTOR
+    // CHECK ID task
+    //=============================================================
+    let [check_task_success, check_task_result] = checkTaskIDExists(
+        task_id
+    );
+
+    // QUERY FAILS
+    if (!check_task_success){
+        console.log(check_task_result);
+        const message = {
+            "message": "Failed",
+            "error_key": "error_internal_server",
+            "error_message": check_task_result,
+            "error_data": "ON checkTaskIDExists"
+        };
+        //LOGGING
+        logApiBasic(
+            `Request ${head_route_name}/${request_namepath} Failed`,
+            `REQUEST GOT AT : ${time_requested} \n` +
+            "REQUEST BODY/PARAM : \n" +
+            JSON.stringify(data_toview_on_error, null, 2),
+            JSON.stringify(message, null, 2)
+        );
+        res.status(200).json(message);
+        return; //END
+    }
+
+    // ID DOESNT EXISTS
+    if (!check_task_result){
+        console.log(check_task_result);
+        const message = {
+            "message": "Failed",
+            "error_key": "error_id_not_found",
+            "error_message": "Cant found data with id :: " + task_id.toString(),
+            "error_data": {
+                "ON": "checkTaskIDExists",
+                "ID": task_id
+            }
+        };
+        //LOGGING
+        logApiBasic(
+            `Request ${head_route_name}/${request_namepath} Failed`,
+            `REQUEST GOT AT : ${time_requested} \n` +
+            "REQUEST BODY/PARAM : \n" +
+            JSON.stringify(data_toview_on_error, null, 2),
+            JSON.stringify(message, null, 2)
+        );
+        res.status(200).json(message);
+        return; //END
+    }
+
+    // UPDATE task
     //=============================================================
     let [task_success, task_result] = updateTask(
         task_id,
@@ -285,7 +337,7 @@ router.post('/add', async (req, res)=>{
     //=============================================================
     let joi_body_schema = joi.object({
         "Title": joi.string().required(),
-        "Action_Time": joi.date().timestamp().required(),
+        "Action_Time": joi.date().timestamp('unix').required(),
         "Objective_List": joi.array().items(
             joi.string().required(),
         ).required().min(1)
@@ -318,7 +370,7 @@ router.post('/add', async (req, res)=>{
     let action_time = joi_body_valid.value["Action_Time"];
     let objective_list = joi_body_valid.value["Objective_List"];
 
-    // CHECK ID DOCTOR
+    // ADD task
     //=============================================================
     let [task_success, task_result] = addTask(
         title,
@@ -404,7 +456,59 @@ router.delete('/delete/:id', async (req, res)=>{
     //=============================================================
     let task_id = req.params.id;
 
-    // CHECK ID DOCTOR
+    // CHECK ID task
+    //=============================================================
+    let [check_task_success, check_task_result] = checkTaskIDExists(
+        task_id
+    );
+
+    // QUERY FAILS
+    if (!check_task_success){
+        console.log(check_task_result);
+        const message = {
+            "message": "Failed",
+            "error_key": "error_internal_server",
+            "error_message": check_task_result,
+            "error_data": "ON checkTaskIDExists"
+        };
+        //LOGGING
+        logApiBasic(
+            `Request ${head_route_name}/${request_namepath} Failed`,
+            `REQUEST GOT AT : ${time_requested} \n` +
+            "REQUEST BODY/PARAM : \n" +
+            JSON.stringify(data_toview_on_error, null, 2),
+            JSON.stringify(message, null, 2)
+        );
+        res.status(200).json(message);
+        return; //END
+    }
+
+    // ID DOESNT EXISTS
+    if (!check_task_result){
+        console.log(check_task_result);
+        const message = {
+            "message": "Failed",
+            "error_key": "error_id_not_found",
+            "error_message": "Cant found data with id :: " + task_id.toString(),
+            "error_data": {
+                "ON": "checkTaskIDExists",
+                "ID": task_id
+            }
+        };
+        //LOGGING
+        logApiBasic(
+            `Request ${head_route_name}/${request_namepath} Failed`,
+            `REQUEST GOT AT : ${time_requested} \n` +
+            "REQUEST BODY/PARAM : \n" +
+            JSON.stringify(data_toview_on_error, null, 2),
+            JSON.stringify(message, null, 2)
+        );
+        res.status(200).json(message);
+        return; //END
+    }
+
+
+    // DELETE task
     //=============================================================
     let [task_success, task_result] = deleteTask(
         task_id
@@ -486,7 +590,7 @@ router.get('/get/:id', async (req, res)=>{
     //=============================================================
     let task_id = req.params.id;
 
-    // GET DOCTOR BY ID
+    // GET task BY ID
     //=============================================================
     let [task_success, task_result] = getTaskByID(
         task_id
@@ -519,7 +623,7 @@ router.get('/get/:id', async (req, res)=>{
         const message = {
             "message": "Failed",
             "error_key": "error_id_not_found",
-            "error_message": "Cant found data with id :: " + doctor_id.toString(),
+            "error_message": "Cant found data with id :: " + task_id.toString(),
             "error_data": {
                 "ON": "getTaskByID",
                 "ID": task_id
