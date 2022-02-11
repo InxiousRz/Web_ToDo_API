@@ -73,7 +73,7 @@ function addTask(
                 INSERT INTO task(title, action_time, created_time, updated_time, is_finished)
                 VALUES (
                     '${title}',
-                    ${moment_tz(action_time).unix()},
+                    ${action_time},
                     ${date_now.unix()},
                     ${date_now.unix()},
                     false
@@ -293,7 +293,7 @@ function getTaskSearch(
             let search_detail_stmt = db.prepare(
                 `
                     SELECT 
-                        td.task_detail_id as "Task_Detail_ID",
+                        --// td.task_detail_id as "Task_Detail_ID",
                         td.objective_name as "Objective_Name",
                         td.is_finished as "Is_Finished"
                     FROM task_detail AS td
@@ -376,7 +376,7 @@ function getTaskByID(
         let detail_stmt = db.prepare(
             `
                 SELECT 
-                    td.task_detail_id as "Task_Detail_ID",
+                    --// td.task_detail_id as "Task_Detail_ID",
                     td.objective_name as "Objective_Name",
                     td.is_finished as "Is_Finished"
                 FROM task_detail AS td

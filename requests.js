@@ -50,6 +50,7 @@ router.get('/get', async (req, res)=>{
         "QUERY": req.query
     };
     const url_query = req.query;
+    console.log(data_toview_on_error);
 
     // JOI VALIDATION
     //=============================================================
@@ -61,7 +62,7 @@ router.get('/get', async (req, res)=>{
         "Created_Time_End": joi.date().timestamp('unix').default(null),
         "Updated_Time_Start": joi.date().timestamp('unix').default(null),
         "Updated_Time_End": joi.date().timestamp('unix').default(null),
-        "Is_Finished": joi.date().timestamp('unix').default(null),
+        "Is_Finished": joi.boolean().default(null),
         // "Page": joi.number().min(1).required(),
         // "Limit": joi.number().default(20).invalid(0)
     }).required();
@@ -89,12 +90,12 @@ router.get('/get', async (req, res)=>{
     // PARAMETER
     //=============================================================
     let title = joi_valid.value["Title"];
-    let action_time_start = joi_valid.value["Action_Time_Start"];
-    let action_time_end = joi_valid.value["Action_Time_End"];
-    let created_time_start = joi_valid.value["Created_Time_Start"];
-    let created_time_end = joi_valid.value["Created_Time_End"];
-    let updated_time_start = joi_valid.value["Updated_Time_Start"];
-    let updated_time_end = joi_valid.value["Updated_Time_End"];
+    let action_time_start = joi_valid.value["Action_Time_Start"] == null ? null : moment_tz(joi_valid.value["Action_Time_Start"]).unix();
+    let action_time_end = joi_valid.value["Action_Time_End"] == null ? null : moment_tz(joi_valid.value["Action_Time_End"]).unix();
+    let created_time_start = joi_valid.value["Created_Time_Start"] == null ? null : moment_tz(joi_valid.value["Created_Time_Start"]).unix();
+    let created_time_end = joi_valid.value["Created_Time_End"] == null ? null : moment_tz(joi_valid.value["Created_Time_End"]).unix();
+    let updated_time_start = joi_valid.value["Updated_Time_Start"] == null ? null : moment_tz(joi_valid.value["Updated_Time_Start"]).unix();
+    let updated_time_end = joi_valid.value["Updated_Time_End"] == null ? null : moment_tz(joi_valid.value["Updated_Time_End"]).unix();
     let is_finished = joi_valid.value["Is_Finished"];
     // let current_page = joi_valid.value["Page"];
     // let limit = joi_valid.value["Limit"];
@@ -367,7 +368,7 @@ router.post('/add', async (req, res)=>{
     // PARAMETER
     //=============================================================
     let title = joi_body_valid.value["Title"];
-    let action_time = joi_body_valid.value["Action_Time"];
+    let action_time = joi_body_valid.value["Action_Time"] == null ? null : moment_tz(joi_body_valid.value["Action_Time"]).unix();
     let objective_list = joi_body_valid.value["Objective_List"];
 
     // ADD task
