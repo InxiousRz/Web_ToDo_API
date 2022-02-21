@@ -15,7 +15,7 @@ describe('Utilities Test', function(){
         .get('/')
         .end(function(err, res) {
             res.should.have.status(200);
-            res.body.should.equal('pong');
+            res.text.should.equal('pong');
             done();                               
         });
     });
