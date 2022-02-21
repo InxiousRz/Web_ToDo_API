@@ -26,9 +26,9 @@ jobs:
 
 workflows:
   version: 2
-  test_ci:
+  api_test_wf:
     jobs:
-      - ci:
+      - test_ci:
           filters:
             branches:
               only:
