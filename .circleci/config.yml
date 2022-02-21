@@ -41,7 +41,8 @@ workflows:
   version: 2
   api_test_wf:
     jobs:
-      - test_ci:
+      - test_ci
+      - deploy_ci:
           filters:
             branches:
               only:
