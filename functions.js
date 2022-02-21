@@ -137,7 +137,9 @@ function getTaskSearch(
     created_time_end,
     updated_time_start, 
     updated_time_end,
-    is_finished
+    is_finished,
+    current_page,
+    limit
 ){
 
     let success;
@@ -276,6 +278,17 @@ function getTaskSearch(
             ORDER BY action_time asc
         `
 
+        // LIMIT 
+        if(limit){
+            query += ` LIMIT ${limit} `;
+        }
+        
+
+        // OFFSET 
+        let offset = limit * Math.max(((current_page || 0) - 1), 0);
+        query += ` OFFSET ${offset} `;
+
+
 
         result = [];
 
@@ -331,6 +344,255 @@ function getTaskSearch(
         success,
         result
     ];
+
+}
+
+
+// GET task search Count All
+// ===============================================================================
+function getTaskSearchCountAll(
+    title, 
+    action_time_start, 
+    action_time_end,
+    created_time_start, 
+    created_time_end,
+    updated_time_start, 
+    updated_time_end,
+    is_finished
+){
+
+    let success;
+    let result;
+
+    try {
+
+        // HEADER
+        let query = `
+            select  
+                --// COUNT ONLY
+                COUNT(*) as "Total"
+            FROM task
+        `;
+        let filter_applied = 0;
+
+        // APPLY SEARCH - title
+        if (title != null){
+
+            if (filter_applied == 0){
+                query += " where "
+            } else {
+                query += " and "
+            }
+
+            let filter_value = "'" + '%'+title.toString().toLowerCase()+'%' + "'" ;
+            query += ` title like ${filter_value} `;
+            filter_applied += 1;
+        }
+
+        // APPLY SEARCH - action_time_start
+        if (action_time_start != null){
+
+            if (filter_applied == 0){
+                query += " where "
+            } else {
+                query += " and "
+            }
+
+            let filter_value = action_time_start;
+            query += ` action_time >= ${filter_value} `;
+            filter_applied += 1;
+        }
+
+        // APPLY SEARCH - action_time_end
+        if (action_time_end != null){
+
+            if (filter_applied == 0){
+                query += " where "
+            } else {
+                query += " and "
+            }
+
+            let filter_value = action_time_end;
+            query += ` action_time <= ${filter_value} `;
+            filter_applied += 1;
+        }
+
+        // APPLY SEARCH - created_time_start
+        if (created_time_start != null){
+
+            if (filter_applied == 0){
+                query += " where "
+            } else {
+                query += " and "
+            }
+
+            let filter_value = created_time_start;
+            query += ` created_time >= ${filter_value} `;
+            filter_applied += 1;
+        }
+
+        // APPLY SEARCH - created_time_end
+        if (created_time_end != null){
+
+            if (filter_applied == 0){
+                query += " where "
+            } else {
+                query += " and "
+            }
+
+            let filter_value = created_time_end;
+            query += ` created_time <= ${filter_value} `;
+            filter_applied += 1;
+        }
+
+        // APPLY SEARCH - updated_time_start
+        if (updated_time_start != null){
+
+            if (filter_applied == 0){
+                query += " where "
+            } else {
+                query += " and "
+            }
+
+            let filter_value = updated_time_start;
+            query += ` updated_time >= ${filter_value} `;
+            filter_applied += 1;
+        }
+
+        // APPLY SEARCH - updated_time_end
+        if (updated_time_end != null){
+
+            if (filter_applied == 0){
+                query += " where "
+            } else {
+                query += " and "
+            }
+
+            let filter_value = updated_time_end;
+            query += ` updated_time <= ${filter_value} `;
+            filter_applied += 1;
+        }
+
+        // APPLY SEARCH - is_finished
+        if (is_finished != null){
+
+            if (filter_applied == 0){
+                query += " where "
+            } else {
+                query += " and "
+            }
+
+            let filter_value = is_finished;
+            query += ` is_finished = ${filter_value} `;
+            filter_applied += 1;
+        }
+
+
+        // ORDER
+        query += `
+            ORDER BY action_time asc
+        `;
+
+
+
+        result = [];
+
+        let search_stmt = db.prepare(
+            query
+        );
+        
+        let search_result = search_stmt.get();
+        result = Number(search_result["Total"]);
+
+        
+        success = true;
+
+    } catch(err) {
+
+        console.log(err.message);
+        success = false;
+        result = err.message;
+
+
+    }
+
+    return [
+        success,
+        result
+    ];
+
+}
+
+
+// GET task SEARCH MAIN
+// ===============================================================================
+function getTaskSearchMain(
+    title,
+    action_time_start,
+    action_time_end,
+    created_time_start,
+    created_time_end,
+    updated_time_start,
+    updated_time_end,
+    is_finished,
+    current_page,
+    limit
+){
+
+    // GET SAMPLE PARAMETER HASIL DATA
+    // ------------------------------------------------------
+    let [get_search_success, get_search_result] = getTaskSearch(
+        title,
+        action_time_start,
+        action_time_end,
+        created_time_start,
+        created_time_end,
+        updated_time_start,
+        updated_time_end,
+        is_finished,
+        current_page,
+        limit
+    )
+
+    // IF FAILS
+    if (!get_search_success){
+        success = false;
+        result = get_search_result;
+        return [success, result]; // END
+    }
+
+    // GET SAMPLE PARAMETER HASIL DATA
+    // ------------------------------------------------------
+    let [get_search_count_success, get_search_count_result] = getTaskSearchCountAll(
+        title,
+        action_time_start,
+        action_time_end,
+        created_time_start,
+        created_time_end,
+        updated_time_start,
+        updated_time_end,
+        is_finished
+    )
+
+    // IF FAILS
+    if (!get_search_count_success){
+        success = false;
+        result = get_search_count_result;
+        return [success, result]; // END
+    }
+
+    // PAGINATE
+
+    result = PaginatePagesSimple(
+        get_search_result,
+        current_page,
+        limit,
+        get_search_count_result
+    );
+    success = true;
+
+    
+    return [success, result]; // END
 
 }
 
@@ -426,6 +688,7 @@ function updateTask(
 
     try {
         
+        let date_now_unix = moment_tz().unix();
 
         // BEGIN
         begin.run();
@@ -433,7 +696,7 @@ function updateTask(
         let update_head_stmt = db.prepare(
             `
                 UPDATE task
-                SET title = '${title}'
+                SET title = '${title}', updated_time = ${date_now_unix}
                 WHERE task_id = ${task_id}
             `
         );
@@ -449,10 +712,15 @@ function updateTask(
         let delete_detail_info = delete_detail_stmt.run();
         console.log('detail data deleted :: ' + task_id.toString());
 
+        let all_objective_done = true;
         for(let objective_data of objective_list){
 
             let objective_name = objective_data["Objective_Name"];
             let is_finished = objective_data["Is_Finished"].toString().toLowerCase();
+
+            if (objective_data["Is_Finished"] == false){
+                all_objective_done = false;
+            }
 
             let insert_detail_stmt = db.prepare(
                 `
@@ -468,6 +736,19 @@ function updateTask(
         }
         console.log('detail data added :: ' + objective_list.length.toString() + ' item :: for header id :: ' + task_id.toString());
     
+        if (all_objective_done){
+            let update_head_stmt_finish = db.prepare(
+                `
+                    UPDATE task
+                    SET Is_Finished = true
+                    WHERE task_id = ${task_id}
+                `
+            );
+            let update_head_info_finish = update_head_stmt_finish.run();
+            console.log('header data updated finish :: ' + task_id.toString());
+        }
+        
+
 
         // COMMIT
         commit.run();
@@ -593,10 +874,65 @@ function checkTaskIDExists(
 }
 
 
+// PAGINATE PAGES
+// ===============================================================================
+function PaginatePagesSimple(
+    wanted_data_list,
+    current_page,
+    limit,
+    total_data_count
+){
+
+    let result;
+
+    // PROPERTY NORMALIZATION
+    // ------------------------------------------------------
+    current_page = Number(current_page)
+    limit = limit == undefined || limit == null ? null : Number(limit)
+    total_data_count = Number(total_data_count)
+
+    // PREPARE EXTRA PAGINATION DATA
+    // ------------------------------------------------------
+    let max_page = 1;
+    if (limit != null && total_data_count != 0){
+        max_page = Math.ceil(total_data_count / limit);
+    } 
+
+    // IF CURRENT PAGE > MAX PAGE :: FORCE RETURN EMPTY
+    if (current_page > max_page){
+        success = true;
+        result = {
+            "List_Data": [],
+            "Pagination_Data": {
+                "Current_Page": current_page, //CURRENT ACCESSED PAGE
+                "Max_Data_Per_Page": limit, //MAXIMUM DATA VIEWED ON EACH PAGE
+                "Max_Page": max_page, //MAXIMUM PAGE AVAILABLE
+                "Total_All_Data": total_data_count //TOTAL ALL DATA
+            }
+        }
+
+        return result; // END
+    }
+
+    result = {
+        "List_Data": wanted_data_list,
+        "Pagination_Data": {
+            "Current_Page": current_page,
+            "Max_Data_Per_Page": limit,
+            "Max_Page": max_page,
+            "Total_All_Data": total_data_count
+        }
+    }
+
+    return result; // END
+}
+
+
+
 // EXPORTS
 // ===============================================================================
 exports.addTask = addTask;
-exports.getTaskSearch = getTaskSearch;
+exports.getTaskSearchMain = getTaskSearchMain;
 exports.getTaskByID = getTaskByID;
 exports.updateTask = updateTask;
 exports.deleteTask = deleteTask;

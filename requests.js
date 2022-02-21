@@ -13,7 +13,7 @@ const moment_tz = require('moment-timezone');
 // FUNCTIONS
 // ===============================================================================
 const addTask = require('./functions').addTask;
-const getTaskSearch = require('./functions').getTaskSearch;
+const getTaskSearchMain = require('./functions').getTaskSearchMain;
 const getTaskByID = require('./functions').getTaskByID;
 const updateTask = require('./functions').updateTask;
 const deleteTask = require('./functions').deleteTask;
@@ -63,8 +63,8 @@ router.get('/get', async (req, res)=>{
         "Updated_Time_Start": joi.date().timestamp('unix').default(null),
         "Updated_Time_End": joi.date().timestamp('unix').default(null),
         "Is_Finished": joi.boolean().default(null),
-        // "Page": joi.number().min(1).required(),
-        // "Limit": joi.number().default(20).invalid(0)
+        "Page": joi.number().min(1).required(),
+        "Limit": joi.number().default(20).invalid(0)
     }).required();
 
     let joi_valid = joi_schema.validate(url_query);
@@ -97,12 +97,12 @@ router.get('/get', async (req, res)=>{
     let updated_time_start = joi_valid.value["Updated_Time_Start"] == null ? null : moment_tz(joi_valid.value["Updated_Time_Start"]).unix();
     let updated_time_end = joi_valid.value["Updated_Time_End"] == null ? null : moment_tz(joi_valid.value["Updated_Time_End"]).unix();
     let is_finished = joi_valid.value["Is_Finished"];
-    // let current_page = joi_valid.value["Page"];
-    // let limit = joi_valid.value["Limit"];
+    let current_page = joi_valid.value["Page"];
+    let limit = joi_valid.value["Limit"];
 
     // GET task
     //=============================================================
-    let [task_success, task_result] = getTaskSearch(
+    let [task_success, task_result] = getTaskSearchMain(
         title,
         action_time_start,
         action_time_end,
@@ -110,7 +110,9 @@ router.get('/get', async (req, res)=>{
         created_time_end,
         updated_time_start,
         updated_time_end,
-        is_finished
+        is_finished,
+        current_page,
+        limit
     );
 
     // QUERY FAILS
@@ -120,7 +122,7 @@ router.get('/get', async (req, res)=>{
             "message": "Failed",
             "error_key": "error_internal_server",
             "error_message": task_result,
-            "error_data": "ON getTaskSearch"
+            "error_data": "ON getTaskSearchMain"
         };
         //LOGGING
         logApiBasic(
