@@ -24,6 +24,19 @@ jobs:
           name: Run tests
           command: npm run test
 
+  deploy_ci:
+    machine:
+      enabled: true
+    working_directory: .
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - $SSH_FGP
+      - run:
+          name: Deploy Over SSH
+          command: |
+            scp -r . "$SSH_USER@$SSH_HOST:$SSH_DEPLOY_PATH"
+
 workflows:
   version: 2
   api_test_wf:

@@ -15,7 +15,8 @@
     "express": "^4.17.2",
     "helmet": "^5.0.2",
     "joi": "^17.6.0",
-    "moment-timezone": "^0.5.34"
+    "moment-timezone": "^0.5.34",
+    "spdy": "^4.0.2"
   },
   "devDependencies": {
     "chai": "^4.3.6",
