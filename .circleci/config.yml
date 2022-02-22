@@ -49,7 +49,7 @@ workflows:
       - deploy_ci:
           requires:
               - test_ci
-            filters:
-              branches:
-                only:
-                  - main
+          filters:
+            branches:
+              only:
+                - main
