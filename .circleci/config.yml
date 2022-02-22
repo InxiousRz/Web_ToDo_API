@@ -36,6 +36,9 @@ jobs:
           name: Deploy Over SSH
           command: |
             scp -r ~/Web_ToDo_API "$SSH_USER@$SSH_HOST:$SSH_DEPLOY_PATH"
+      - run:
+          name: Start PM2
+          command: ssh $SSH_USER@$SSH_HOST 'sudo pm2 start ./Web_ToDo_API/index_local.js'
 
 workflows:
   version: 2
