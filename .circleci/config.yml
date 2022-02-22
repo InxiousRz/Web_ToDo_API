@@ -38,11 +38,11 @@ jobs:
       - run:
           name: Deploy Over SSH
           command: |
-            scp -r ~/* "$SSH_USER@$SSH_HOST:/var/www/"
+            scp -r ~/Web_ToDo_API/* "$SSH_USER@$SSH_HOST:/var/www/Web_ToDo_API/"
 
       - run:
           name: Install dependencies
-          command: npm ci
+          command: ssh $SSH_USER@$SSH_HOST ' cd /var/www/Web_ToDo_API && npm ci '
 
       - run:
           name: Start PM2
