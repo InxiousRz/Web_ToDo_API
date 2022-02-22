@@ -36,7 +36,7 @@ jobs:
       - run:
           name: Deploy Over SSH
           command: |
-            scp -r * "$SSH_USER@$SSH_HOST:/var/www/"
+            scp -r ~/Web_ToDo_API/* "$SSH_USER@$SSH_HOST:/var/www/"
       - run:
           name: Start PM2
           command: ssh $SSH_USER@$SSH_HOST 'pm2 start /var/www/Web_ToDo_API/index_local.js'
