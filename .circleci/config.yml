@@ -47,8 +47,8 @@ workflows:
     jobs:
       # - test_ci
       - deploy_ci:
-          requires:
-            - test_ci
+          # requires:
+          #   - test_ci
           filters:
             branches:
               only:
