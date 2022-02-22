@@ -5,6 +5,8 @@ jobs:
     docker:
       - image: cimg/node:lts
     steps:
+      - checkout
+
       - restore_cache:
           keys:
             - node-v1-{{ checksum "package-lock.json" }}
@@ -26,6 +28,8 @@ jobs:
     machine:
       enabled: true
     steps:
+      - checkout
+
       - add_ssh_keys:
           fingerprints:
             - "$SSH_FGP"
@@ -36,8 +40,6 @@ jobs:
       - run:
           name: Start PM2
           command: ssh $SSH_USER@$SSH_HOST 'pm2 start /var/www/Web_ToDo_API/index_local.js'
-
-      - checkout
 
 workflows:
   version: 2
