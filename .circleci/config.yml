@@ -28,6 +28,7 @@ jobs:
   deploy_ci:
     machine:
       enabled: true
+    working_directory: ~/Web_ToDo_API
     steps:
       - add_ssh_keys:
           fingerprints:
