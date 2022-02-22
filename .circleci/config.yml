@@ -4,6 +4,7 @@ jobs:
   test_ci:
     docker:
       - image: cimg/node:lts
+    working_directory: ~/Web_ToDo_API
     steps:
       - checkout
 
