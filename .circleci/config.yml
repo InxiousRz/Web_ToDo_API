@@ -39,7 +39,7 @@ jobs:
             scp -r * "$SSH_USER@$SSH_HOST:/var/www/"
       - run:
           name: Start PM2
-          command: ssh $SSH_USER@$SSH_HOST 'sudo pm2 start /var/www/Web_ToDo_API/index_local.js'
+          command: ssh $SSH_USER@$SSH_HOST 'pm2 start /var/www/Web_ToDo_API/index_local.js'
 
 workflows:
   version: 2
@@ -48,7 +48,7 @@ workflows:
       - test_ci
       - deploy_ci:
           requires:
-              - test_ci
+            - test_ci
           filters:
             branches:
               only:
