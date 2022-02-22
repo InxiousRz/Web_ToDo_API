@@ -27,6 +27,7 @@ jobs:
   deploy_ci:
     machine:
       enabled: true
+    working_directory: ~/Web_ToDo_API
     steps:
       - checkout
 
